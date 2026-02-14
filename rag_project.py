@@ -13,11 +13,11 @@ from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader, TextLoader, Docx2txtLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings  # <-- changed
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_classic.chains.retrieval import create_retrieval_chain
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain # fixed import
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq  # <-- new import for Groq
 
 # ------------------------------
 # Load environment variables
@@ -35,8 +35,9 @@ logger = logging.getLogger(__name__)
 # ------------------------------
 DOCS_DIR = os.getenv("DOCS_DIR", "knowledge_base")
 INDEX_PATH = os.getenv("INDEX_PATH", "faiss_index")
-DEFAULT_GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
-# Use a sentence-transformers model
+# Groq model (default to a fast, capable one)
+DEFAULT_GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+# Sentence-transformers model for embeddings
 DEFAULT_EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 DEFAULT_CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", 800))
 DEFAULT_CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", 150))
@@ -46,10 +47,10 @@ DEFAULT_TEMPERATURE = float(os.getenv("TEMPERATURE", 0.2))
 # Create directories if not exist
 os.makedirs(DOCS_DIR, exist_ok=True)
 
-# Check for Gemini API key
-GEMINI_API_KEY = os.getenv("GOOGLE_API_KEY")
-if not GEMINI_API_KEY:
-    st.error("❌ GOOGLE_API_KEY not found. Please set it in your .env file.")
+# Check for Groq API key
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+if not GROQ_API_KEY:
+    st.error("❌ GROQ_API_KEY not found. Please set it in your .env file.")
     st.stop()
 
 # ------------------------------
@@ -78,21 +79,13 @@ def get_embeddings(model_name=DEFAULT_EMBEDDING_MODEL):
     """Return cached HuggingFace embeddings (sentence-transformers)."""
     return HuggingFaceEmbeddings(model_name=model_name)
 
-@st.cache_resource(show_spinner="Loading Gemini LLM...")
-def get_llm(model_name=DEFAULT_GEMINI_MODEL, temperature=DEFAULT_TEMPERATURE):
-    """Return cached Gemini chat model with fallback for model naming."""
-    
-    # Ensure we aren't using the retired 1.5 model name
-    if "1.5" in model_name:
-        model_name = "gemini-2.0-flash"
-        
-    return ChatGoogleGenerativeAI(
+@st.cache_resource(show_spinner="Loading Groq LLM...")
+def get_llm(model_name=DEFAULT_GROQ_MODEL, temperature=DEFAULT_TEMPERATURE):
+    """Return cached Groq chat model."""
+    return ChatGroq(
         model=model_name,
         temperature=temperature,
-        google_api_key=GEMINI_API_KEY,
-        # convert_system_message_to_human is no longer needed in latest versions, 
-        # but keep it if you are on an older langchain-google-genai
-        convert_system_message_to_human=True  
+        groq_api_key=GROQ_API_KEY,
     )
 
 def get_vectorstore():
@@ -153,7 +146,7 @@ def rebuild_index(file_paths, chunk_size, chunk_overlap):
 # Page configuration
 # ------------------------------
 st.set_page_config(
-    page_title="DocMind Pro (Gemini + Sentence Transformers)",
+    page_title="DocMind Pro (Groq + Sentence Transformers)",
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -248,7 +241,7 @@ with st.sidebar:
     if ANIM_AI:
         st_lottie(ANIM_AI, height=120, key="ai_anim")
     else:
-        st.image("https://via.placeholder.com/300x120?text=DocMind", width=True)
+        st.image("https://via.placeholder.com/300x120?text=DocMind", use_column_width=True)
 
     selected = option_menu(
         "DocMind",
@@ -263,7 +256,7 @@ with st.sidebar:
     )
 
     st.markdown("---")
-    st.caption(f"🤖 **LLM:** {DEFAULT_GEMINI_MODEL}")
+    st.caption(f"🤖 **LLM:** {DEFAULT_GROQ_MODEL}")
     st.caption(f"📦 **Embedding:** {DEFAULT_EMBEDDING_MODEL.split('/')[-1]}")
     st.caption("⚡ **Status:** Online")
 
@@ -278,8 +271,8 @@ with st.sidebar:
 # Dashboard Page
 # ------------------------------
 if selected == "Dashboard":
-    st.title("🧠 DocMind Pro (Gemini + Sentence Transformers)")
-    st.markdown("#### Enterprise‑grade RAG powered by Google Gemini & local embeddings")
+    st.title("🧠 DocMind Pro (Groq + Sentence Transformers)")
+    st.markdown("#### Enterprise‑grade RAG powered by Groq & local embeddings")
 
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -289,7 +282,7 @@ if selected == "Dashboard":
         index_status = "✅ Active" if os.path.exists(INDEX_PATH) else "❌ Missing"
         st.metric("Index Status", index_status)
     with col3:
-        st.metric("Context Window", "1M tokens")
+        st.metric("Context Window", "128K tokens (Groq)")
 
     st.markdown("---")
     if ANIM_CHAT:
@@ -413,6 +406,6 @@ elif selected == "Query Engine":
 # ------------------------------
 st.markdown("""
 <div class="footer">
-    DocMind Professional (Gemini + Sentence Transformers) v3.3 | 2026 | Local embeddings · Gemini API
+    DocMind Professional (Groq + Sentence Transformers) v3.4 | 2026 | Local embeddings · Groq API
 </div>
 """, unsafe_allow_html=True)
