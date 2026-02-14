@@ -80,12 +80,19 @@ def get_embeddings(model_name=DEFAULT_EMBEDDING_MODEL):
 
 @st.cache_resource(show_spinner="Loading Gemini LLM...")
 def get_llm(model_name=DEFAULT_GEMINI_MODEL, temperature=DEFAULT_TEMPERATURE):
-    """Return cached Gemini chat model."""
+    """Return cached Gemini chat model with fallback for model naming."""
+    
+    # Ensure we aren't using the retired 1.5 model name
+    if "1.5" in model_name:
+        model_name = "gemini-2.0-flash"
+        
     return ChatGoogleGenerativeAI(
         model=model_name,
         temperature=temperature,
         google_api_key=GEMINI_API_KEY,
-        convert_system_message_to_human=True  # Required for Gemini system prompts
+        # convert_system_message_to_human is no longer needed in latest versions, 
+        # but keep it if you are on an older langchain-google-genai
+        convert_system_message_to_human=True  
     )
 
 def get_vectorstore():
