@@ -1,0 +1,16 @@
+streamlit
+streamlit-option-menu
+streamlit-lottie
+langchain
+langchain-community
+langchain-text-splitters
+langchain-google-genai
+langchain-huggingface
+faiss-cpu
+pypdf
+python-docx
+python-dotenv
+requests
+sentence-transformers
+# Constraints to prevent dependency conflicts
+huggingface-hub>=0.33.4,<1.0.0
