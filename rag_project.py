@@ -241,7 +241,7 @@ with st.sidebar:
     if ANIM_AI:
         st_lottie(ANIM_AI, height=120, key="ai_anim")
     else:
-        st.image("https://via.placeholder.com/300x120?text=DocMind", use_column_width=True)
+        st.image("https://via.placeholder.com/300x120?text=DocMind", width=True)
 
     selected = option_menu(
         "DocMind",
